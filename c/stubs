@@ -1,0 +1,134 @@
+/*******************************************************************
+ * File:        stubs
+ * Purpose:     Explicit pass-through decisions for unimplemented CLIV paths
+ * Author:      Gerph
+ ******************************************************************/
+
+#include <ctype.h>
+#include <string.h>
+
+#include "stubs.h"
+
+
+/***************************************************************************
+ * Function:     cliv_strnicmp
+ * Description:  Compare two strings case-insensitively for a fixed length
+ * Parameters:   left  = first string
+ *               right = second string
+ *               len   = maximum number of bytes to compare
+ * Returns:      0 if the strings match in the requested range
+ **************************************************************************/
+static int cliv_strnicmp(const char *left, const char *right, size_t len)
+{
+    while (len != 0)
+    {
+        int lc;
+        int rc;
+
+        lc = tolower((unsigned char)*left);
+        rc = tolower((unsigned char)*right);
+        if (lc != rc || lc == '\0' || rc == '\0')
+        {
+            return lc - rc;
+        }
+
+        left++;
+        right++;
+        len--;
+    }
+
+    return 0;
+}
+
+
+/***************************************************************************
+ * Function:     cliv_redirection_requires_passthrough
+ * Description:  Detect redirection blocks that still need full support
+ * Parameters:   command_line = command line to inspect
+ * Returns:      Non-zero if the command should be passed to another handler
+ **************************************************************************/
+int cliv_redirection_requires_passthrough(const char *command_line)
+{
+    int quoted;
+
+    quoted = 0;
+    while (*command_line != '\0' && *command_line != '\r' && *command_line != '\n')
+    {
+        if (*command_line == '"')
+        {
+            quoted = !quoted;
+        }
+        else if (!quoted && command_line[0] == '{' && command_line[1] == ' ')
+        {
+            return 1;
+        }
+
+        command_line++;
+    }
+
+    return 0;
+}
+
+
+/***************************************************************************
+ * Function:     cliv_module_prefix_requires_passthrough
+ * Description:  Detect directed module prefixes that still need translation
+ * Parameters:   command = command token to inspect
+ * Returns:      Non-zero if the command should be passed to another handler
+ **************************************************************************/
+int cliv_module_prefix_requires_passthrough(const char *command)
+{
+    const char *colon;
+
+    colon = strchr(command, ':');
+    if (colon == NULL)
+    {
+        return 0;
+    }
+
+    if (colon == command)
+    {
+        return 0;
+    }
+
+    if (cliv_strnicmp(command, "Module#", 7) == 0)
+    {
+        return 1;
+    }
+
+    while (command < colon)
+    {
+        if (!isalnum((unsigned char)*command) &&
+            *command != '_' &&
+            *command != '%')
+        {
+            return 0;
+        }
+        command++;
+    }
+
+    return 1;
+}
+
+
+/***************************************************************************
+ * Function:     cliv_alias_handling_requires_passthrough
+ * Description:  Report whether alias or command dispatch is still required
+ * Parameters:   command = command token to inspect
+ * Returns:      Non-zero if the command should be passed to another handler
+ **************************************************************************/
+int cliv_alias_handling_requires_passthrough(const char *command)
+{
+    /*
+     * Alias expansion, directed module command dispatch, filing system
+     * command dispatch, and Service_UKCommand fallback still need a fuller
+     * translation from the Pyromaniac implementation.
+     *
+     * When alias expansion is implemented here it should obtain the alias
+     * text through system variable lookup and expand arguments through
+     * OS_SubstituteArgs via cliv_os_substitute_args().
+     */
+    (void)command;
+
+    return 1;
+}

@@ -1,0 +1,182 @@
+/*******************************************************************
+ * File:        os
+ * Purpose:     SWI wrappers used by the CLIV module
+ * Author:      Gerph
+ ******************************************************************/
+
+#include <stdlib.h>
+
+#include "kernel.h"
+#include "swis.h"
+#include "riscos/Services.h"
+#include "riscos/Vectors.h"
+
+#include "modhead.h"
+#include "os.h"
+
+#define CLIV_FSCTRL_RUN            4
+#define CLIV_FSCTRL_SET_TEMPFS    11
+#define CLIV_FSCTRL_RESTORE_TEMPFS 19
+
+
+/***************************************************************************
+ * Function:     cliv_os_claim_vector
+ * Description:  Claim the CliV vector for this module
+ * Parameters:   pw = private word for the module instance
+ * Returns:      Error pointer, or NULL on success
+ **************************************************************************/
+_kernel_oserror *cliv_os_claim_vector(void *pw)
+{
+    return _swix(OS_Claim, _INR(0, 2), CliV, CliV_Entry, pw);
+}
+
+
+/***************************************************************************
+ * Function:     cliv_os_release_vector
+ * Description:  Release the CliV vector for this module
+ * Parameters:   pw = private word for the module instance
+ * Returns:      Error pointer, or NULL on success
+ **************************************************************************/
+_kernel_oserror *cliv_os_release_vector(void *pw)
+{
+    return _swix(OS_Release, _INR(0, 2), CliV, CliV_Entry, pw);
+}
+
+
+/***************************************************************************
+ * Function:     cliv_os_set_tempfs
+ * Description:  Apply an OS_FSControl 11 temporary filing system prefix
+ * Parameters:   command = command token to inspect
+ *               tail    = updated with the token after any FS prefix
+ *               old_fs  = updated with the previous filing system number
+ *               special = updated with any special field pointer
+ * Returns:      Error pointer, or NULL on success
+ **************************************************************************/
+_kernel_oserror *cliv_os_set_tempfs(const char *command,
+                                    const char **tail,
+                                    int *old_fs,
+                                    const char **special)
+{
+    int out_tail;
+    int out_oldfs;
+    int out_special;
+    _kernel_oserror *err;
+
+    err = _swix(OS_FSControl,
+                _INR(0, 1) | _OUT(1) | _OUT(2) | _OUT(3),
+                CLIV_FSCTRL_SET_TEMPFS,
+                command,
+                &out_tail,
+                &out_oldfs,
+                &out_special);
+    if (err != NULL)
+    {
+        return err;
+    }
+
+    *tail = (const char *)out_tail;
+    *old_fs = out_oldfs;
+    *special = out_special == 0 ? NULL : (const char *)out_special;
+
+    return NULL;
+}
+
+
+/***************************************************************************
+ * Function:     cliv_os_restore_tempfs
+ * Description:  Restore the current filing system after a temporary change
+ * Parameters:   none
+ * Returns:      Error pointer, or NULL on success
+ **************************************************************************/
+_kernel_oserror *cliv_os_restore_tempfs(void)
+{
+    return _swix(OS_FSControl, _IN(0), CLIV_FSCTRL_RESTORE_TEMPFS);
+}
+
+
+/***************************************************************************
+ * Function:     cliv_os_run_file
+ * Description:  Run a file through OS_FSControl 4
+ * Parameters:   filename = file to run
+ * Returns:      Error pointer, or NULL if the SWI succeeded
+ **************************************************************************/
+_kernel_oserror *cliv_os_run_file(const char *filename)
+{
+    return _swix(OS_FSControl, _INR(0, 1), CLIV_FSCTRL_RUN, filename);
+}
+
+
+/***************************************************************************
+ * Function:     cliv_os_substitute_args
+ * Description:  Expand a template with OS_SubstituteArgs
+ * Parameters:   args            = argument list
+ *               no_append       = non-zero to suppress appending leftovers
+ *               output          = destination buffer
+ *               output_length   = length of destination buffer
+ *               template_string = template to expand
+ *               template_length = length of template to process
+ *               result_length   = updated with output size including NUL
+ * Returns:      Error pointer, or NULL on success
+ **************************************************************************/
+_kernel_oserror *cliv_os_substitute_args(const char *args,
+                                         int no_append,
+                                         char *output,
+                                         int output_length,
+                                         const char *template_string,
+                                         int template_length,
+                                         int *result_length)
+{
+    int r0;
+
+    r0 = (int)args;
+    if (no_append)
+    {
+        r0 |= (1U << 31);
+    }
+
+    return _swix(OS_SubstituteArgs,
+                 _INR(0, 4) | _OUT(2),
+                 r0,
+                 output,
+                 output_length,
+                 template_string,
+                 template_length,
+                 result_length);
+}
+
+
+/***************************************************************************
+ * Function:     cliv_os_service_ukcommand
+ * Description:  Issue Service_UKCommand
+ * Parameters:   command   = command line to present
+ *               claimed   = updated with claim state
+ *               error_ptr = updated with service error pointer when claimed
+ * Returns:      Error pointer from OS_ServiceCall, or NULL on success
+ **************************************************************************/
+_kernel_oserror *cliv_os_service_ukcommand(const char *command,
+                                           int *claimed,
+                                           _kernel_oserror **error_ptr)
+{
+    int r0;
+    int r1;
+    _kernel_oserror *err;
+
+    r0 = (int)command;
+    r1 = Service_UKCommand;
+
+    err = _swix(OS_ServiceCall,
+                _INR(0, 1) | _OUT(0) | _OUT(1),
+                r0,
+                r1,
+                &r0,
+                &r1);
+    if (err != NULL)
+    {
+        return err;
+    }
+
+    *claimed = (r1 == 0);
+    *error_ptr = r0 == 0 ? NULL : (_kernel_oserror *)r0;
+
+    return NULL;
+}

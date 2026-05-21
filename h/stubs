@@ -1,0 +1,34 @@
+/*******************************************************************
+ * File:        stubs
+ * Purpose:     Pass-through helpers for unimplemented CLIV paths
+ * Author:      Gerph
+ ******************************************************************/
+
+#ifndef CLIV_STUBS_H
+#define CLIV_STUBS_H
+
+/*******************************************************************
+ Function:      cliv_redirection_requires_passthrough
+ Description:   Detect command redirection that is not yet implemented
+ Parameters:    command_line = command line to inspect
+ Returns:       Non-zero if the command should be passed on
+ ******************************************************************/
+int cliv_redirection_requires_passthrough(const char *command_line);
+
+/*******************************************************************
+ Function:      cliv_module_prefix_requires_passthrough
+ Description:   Detect directed module prefixes that are not yet implemented
+ Parameters:    command = command token to inspect
+ Returns:       Non-zero if the command should be passed on
+ ******************************************************************/
+int cliv_module_prefix_requires_passthrough(const char *command);
+
+/*******************************************************************
+ Function:      cliv_alias_handling_requires_passthrough
+ Description:   Report whether alias or command dispatch is still required
+ Parameters:    command = command token to inspect
+ Returns:       Non-zero if the command should be passed on
+ ******************************************************************/
+int cliv_alias_handling_requires_passthrough(const char *command);
+
+#endif

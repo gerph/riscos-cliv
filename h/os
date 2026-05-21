@@ -1,0 +1,90 @@
+/*******************************************************************
+ * File:        os
+ * Purpose:     SWI wrapper declarations for CLIV
+ * Author:      Gerph
+ ******************************************************************/
+
+#ifndef CLIV_OS_H
+#define CLIV_OS_H
+
+#include "kernel.h"
+
+/*******************************************************************
+ Function:      cliv_os_claim_vector
+ Description:   Claim the CliV vector for this module instance
+ Parameters:    pw = private word for the module instance
+ Returns:       Error pointer, or NULL on success
+ ******************************************************************/
+_kernel_oserror *cliv_os_claim_vector(void *pw);
+
+/*******************************************************************
+ Function:      cliv_os_release_vector
+ Description:   Release the CliV vector for this module instance
+ Parameters:    pw = private word for the module instance
+ Returns:       Error pointer, or NULL on success
+ ******************************************************************/
+_kernel_oserror *cliv_os_release_vector(void *pw);
+
+/*******************************************************************
+ Function:      cliv_os_set_tempfs
+ Description:   Apply OS_FSControl 11 to a command token
+ Parameters:    command = command token to inspect
+                tail    = updated with the remaining token
+                old_fs  = updated with the previous FS number
+                special = updated with any special field pointer
+ Returns:       Error pointer, or NULL on success
+ ******************************************************************/
+_kernel_oserror *cliv_os_set_tempfs(const char *command,
+                                    const char **tail,
+                                    int *old_fs,
+                                    const char **special);
+
+/*******************************************************************
+ Function:      cliv_os_restore_tempfs
+ Description:   Restore the current filing system after a temporary change
+ Parameters:    none
+ Returns:       Error pointer, or NULL on success
+ ******************************************************************/
+_kernel_oserror *cliv_os_restore_tempfs(void);
+
+/*******************************************************************
+ Function:      cliv_os_run_file
+ Description:   Run a file through OS_FSControl 4
+ Parameters:    filename = file to run
+ Returns:       Error pointer, or NULL on success
+ ******************************************************************/
+_kernel_oserror *cliv_os_run_file(const char *filename);
+
+/*******************************************************************
+ Function:      cliv_os_substitute_args
+ Description:   Expand a template through OS_SubstituteArgs
+ Parameters:    args            = argument list
+                no_append       = non-zero to suppress appended leftovers
+                output          = destination buffer
+                output_length   = length of destination buffer
+                template_string = template to expand
+                template_length = length of the template to use
+                result_length   = updated with output size including NUL
+ Returns:       Error pointer, or NULL on success
+ ******************************************************************/
+_kernel_oserror *cliv_os_substitute_args(const char *args,
+                                         int no_append,
+                                         char *output,
+                                         int output_length,
+                                         const char *template_string,
+                                         int template_length,
+                                         int *result_length);
+
+/*******************************************************************
+ Function:      cliv_os_service_ukcommand
+ Description:   Issue Service_UKCommand
+ Parameters:    command   = command line to present
+                claimed   = updated with the claim state
+                error_ptr = updated with the service error pointer
+ Returns:       Error pointer, or NULL on success
+ ******************************************************************/
+_kernel_oserror *cliv_os_service_ukcommand(const char *command,
+                                           int *claimed,
+                                           _kernel_oserror **error_ptr);
+
+#endif

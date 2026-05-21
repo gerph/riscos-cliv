@@ -1,0 +1,110 @@
+/*******************************************************************
+ * File:        module
+ * Purpose:     CLIV module interface and vector entry points
+ * Author:      Gerph
+ ******************************************************************/
+
+#include <stdio.h>
+
+#include "kernel.h"
+#include "modhead.h"
+
+#include "cli.h"
+#include "config.h"
+#include "os.h"
+
+/* #define DEBUG */
+
+#ifdef DEBUG
+#define dprintf if (1) printf
+#else
+#define dprintf if (0) printf
+#endif
+
+int cliv_debug_cli = 0;
+int cliv_debug_alias = 0;
+int cliv_debug_redirection = 0;
+int cliv_debug_directed = 0;
+unsigned int cliv_line_limit = 1023U;
+int cliv_module_hash_enable = 1;
+
+
+/***************************************************************************
+ * Function:     Mod_Init
+ * Description:  Claim the CliV vector for this module instance
+ * Parameters:   tail        = pointer to command line (control terminated)
+ *               podule_base = address of podule module was started from, or
+ *                             NULL if none
+ *               pw          = private word for module
+ * Returns:      Error pointer, or NULL if initialisation succeeded
+ **************************************************************************/
+_kernel_oserror *Mod_Init(const char *tail, int podule_base, void *pw)
+{
+    _kernel_oserror *err;
+
+    (void)tail;
+    (void)podule_base;
+
+    err = cliv_os_claim_vector(pw);
+    if (err == NULL)
+    {
+        dprintf("Module CLIV initialised\n");
+    }
+
+    return err;
+}
+
+
+/***************************************************************************
+ * Function:     Mod_Final
+ * Description:  Release the CliV vector for this module instance
+ * Parameters:   fatal       = fatality indicator; 1 if fatal, 0 if
+ *                             reinitialising
+ *               podule_base = address of podule module was started from, or
+ *                             NULL if none
+ *               pw          = private word for module
+ * Returns:      Error pointer, or NULL if finalisation succeeded
+ **************************************************************************/
+_kernel_oserror *Mod_Final(int fatal, int podule_base, void *pw)
+{
+    _kernel_oserror *err;
+
+    (void)fatal;
+    (void)podule_base;
+
+    err = cliv_os_release_vector(pw);
+    if (err == NULL)
+    {
+        dprintf("Module CLIV dying\n");
+    }
+
+    return err;
+}
+
+
+/***************************************************************************
+ * Function:     CliV_Handler
+ * Description:  Dispatch a command line presented through CliV
+ * Parameters:   r  = pointer to register block on entry
+ *               pw = private word for module
+ * Returns:      VECTOR_CLAIM if handled, VECTOR_PASSON otherwise
+ **************************************************************************/
+int CliV_Handler(_kernel_swi_regs *r, void *pw)
+{
+    const char *command_line;
+
+    (void)pw;
+
+    command_line = (const char *)r->r[0];
+    if (command_line == NULL)
+    {
+        return VECTOR_PASSON;
+    }
+
+    if (cliv_dispatch(command_line))
+    {
+        return VECTOR_CLAIM;
+    }
+
+    return VECTOR_PASSON;
+}

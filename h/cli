@@ -1,0 +1,18 @@
+/*******************************************************************
+ * File:        cli
+ * Purpose:     Public command dispatch interface for CLIV
+ * Author:      Gerph
+ ******************************************************************/
+
+#ifndef CLIV_CLI_H
+#define CLIV_CLI_H
+
+/*******************************************************************
+ Function:      cliv_dispatch
+ Description:   Handle a command line presented through CliV
+ Parameters:    command_line = command line to process
+ Returns:       Non-zero if the command was handled by CLIV
+ ******************************************************************/
+int cliv_dispatch(const char *command_line);
+
+#endif

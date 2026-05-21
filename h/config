@@ -1,0 +1,17 @@
+/*******************************************************************
+ * File:        config
+ * Purpose:     Global configuration and debug state for CLIV
+ * Author:      Gerph
+ ******************************************************************/
+
+#ifndef CLIV_CONFIG_H
+#define CLIV_CONFIG_H
+
+extern int cliv_debug_cli;
+extern int cliv_debug_alias;
+extern int cliv_debug_redirection;
+extern int cliv_debug_directed;
+extern unsigned int cliv_line_limit;
+extern int cliv_module_hash_enable;
+
+#endif

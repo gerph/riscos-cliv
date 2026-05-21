@@ -1,0 +1,20 @@
+/*******************************************************************
+ * File:        alias
+ * Purpose:     Alias expansion interface for CLIV
+ * Author:      Gerph
+ ******************************************************************/
+
+#ifndef CLIV_ALIAS_H
+#define CLIV_ALIAS_H
+
+/*******************************************************************
+ Function:      cliv_try_alias
+ Description:   Attempt alias expansion for a command token
+ Parameters:    command = command token to inspect
+                args    = argument string for substitution
+                handled = updated to report whether the command was claimed
+ Returns:       1 if processing completed, 0 on allocation failure
+ ******************************************************************/
+int cliv_try_alias(const char *command, const char *args, int *handled);
+
+#endif

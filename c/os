@@ -5,6 +5,7 @@
  ******************************************************************/
 
 #include <stdlib.h>
+#include <stdint.h>
 
 #include "kernel.h"
 #include "swis.h"
@@ -41,6 +42,80 @@ _kernel_oserror *cliv_os_release_vector(void *pw)
 {
     return _swix(OS_Release, _INR(0, 2), CliV, CliV_Entry, pw);
 }
+
+/*************************************************** Gerph *********
+ Function:      os_readvarval
+ Description:   Read a variable value
+ Parameters:    var-> the variable name to read
+                buf-> the buffer to write to
+                buflen = length of the buffer, or -1 to just read length
+                context = the context for the call, or 0 for first call
+                type = the variable type to read (3 to expand on return)
+                sizep-> where to store the size that was read
+                contextp-> where to store the context value
+                typep-> where to store the type
+ Returns:       error pointer, or NULL if ok
+ ******************************************************************/
+_kernel_oserror *os_readvarval(const char *var, char *buf, int buflen, uint32_t context, int type,
+                               uint32_t *contextp, int32_t *sizep, int32_t *typep)
+{
+    _kernel_oserror *err;
+    int32_t size = 0;
+    err = _swix(OS_ReadVarVal, _INR(0,4)|_OUTR(2, 4), var, buf, buflen, context, type, &size, &context, &type);
+    if (err)
+    {
+        if (err->errnum == ErrorNumber_VarCantFind)
+        {
+            /* End of enumeration */
+            size = 0;
+            type = -1;
+            context = 0;
+        }
+        else if (err->errnum != ErrorNumber_BuffOverflow)
+        {
+            /* Other error type */
+            size = 0;
+            type = -1;
+            context = 0;
+        }
+    }
+    if (typep != NULL)
+        *typep = type;
+    if (contextp != NULL)
+        *contextp = context;
+    if (sizep != NULL)
+        *sizep = size;
+    return err;
+}
+
+_kernel_oserror *os_fscontrol_cat(const char *path)
+{
+    _kernel_swi_regs regs;
+    _kernel_oserror *err;
+
+    regs.r[0] = 5;
+    regs.r[1] = (int)path;
+
+    err = _kernel_swi(OS_FSControl, &regs, &regs);
+    return err;
+}
+
+
+/*************************************************** Gerph *********
+ Function:      os_cli
+ Description:   Run a CLI command
+ Parameters:    cli-> the command line to run
+ Returns:       pointer to error, or NULL if no error
+ ******************************************************************/
+_kernel_oserror *os_cli(const char *cli)
+{
+    _kernel_oserror *err;
+    err = _swix(OS_CLI, _IN(0), cli);
+    if (err)
+        return err;
+    return NULL;
+}
+
 
 
 /***************************************************************************

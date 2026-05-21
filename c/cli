@@ -10,6 +10,7 @@
 
 #include "kernel.h"
 
+#include "alias.h"
 #include "cli.h"
 #include "config.h"
 #include "os.h"
@@ -112,14 +113,17 @@ int cliv_dispatch(const char *command_line)
 {
     const char *cmd;
     const char *args;
+    const char *command;
     const char *tail;
     const char *special;
     char *command_copy;
+    char *command_token;
     size_t cmd_len;
     size_t command_len;
     int old_fs;
     int restore_fs;
     int handled;
+    int process_aliases;
     _kernel_oserror *err;
 
     cmd = cliv_skip_leading(command_line);
@@ -185,26 +189,68 @@ int cliv_dispatch(const char *command_line)
         goto finish;
     }
 
-    if (cliv_module_prefix_requires_passthrough(tail))
+    cliv_split_command(tail, &command_len, &args);
+    command_token = (char *)malloc(command_len + 1);
+    if (command_token == NULL)
+    {
+        goto finish;
+    }
+
+    memcpy(command_token, tail, command_len);
+    command_token[command_len] = '\0';
+    command = command_token;
+
+    if (cliv_module_prefix_requires_passthrough(command))
     {
         dprintf("CLIV: passing on directed module command\n");
+        free(command_token);
         goto finish;
     }
 
-    if (cliv_alias_handling_requires_passthrough(tail))
+    if (command[0] == '/')
     {
-        dprintf("CLIV: passing on command needing alias or module dispatch\n");
-        goto finish;
-    }
-
-    if (tail[0] == '/' && args[0] == '\0')
-    {
-        err = cliv_os_run_file(tail + 1);
-        if (err == NULL)
+        if (args[0] == '\0')
         {
-            handled = 1;
+            err = cliv_os_run_file(command + 1);
+            if (err == NULL)
+            {
+                handled = 1;
+            }
+        }
+        free(command_token);
+        goto finish;
+    }
+
+    process_aliases = 1;
+    if (command[0] == '%')
+    {
+        process_aliases = 0;
+        command++;
+    }
+
+    if (process_aliases)
+    {
+        if (!cliv_try_alias(command, args, &handled))
+        {
+            free(command_token);
+            goto finish;
+        }
+
+        if (handled)
+        {
+            free(command_token);
+            goto finish;
         }
     }
+
+    if (cliv_alias_handling_requires_passthrough(command))
+    {
+        dprintf("CLIV: passing on command needing module dispatch fallback\n");
+        free(command_token);
+        goto finish;
+    }
+
+    free(command_token);
 
 finish:
     if (restore_fs)

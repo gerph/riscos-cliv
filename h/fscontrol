@@ -1,0 +1,76 @@
+/*******************************************************************
+ * File:        fscontrol
+ * Purpose:     Definitions of the OS_FSControl reasons
+ * Author:      Gerph
+ * Date:        21 May 2026
+ ******************************************************************/
+
+
+#ifndef FSCONTROL_H
+#define FSCONTROL_H
+
+#define FSControl_Dir                       0x0         //  0
+#define FSControl_Lib                       0x1         //  1
+#define FSControl_StartApplication          0x2         //  2
+#define FSControl_RunType                   0x3         //  3
+#define FSControl_Run                       0x4         //  4
+#define FSControl_Cat                       0x5         //  5
+#define FSControl_Ex                        0x6         //  6
+#define FSControl_LCat                      0x7         //  7
+#define FSControl_LEx                       0x8         //  8
+#define FSControl_Info                      0x9         //  9
+#define FSControl_Opt                       0xa         //  10
+#define FSControl_StarMinus                 0xb         //  11 - Was LIBFS run on PRB
+#define FSControl_AddFS                     0xc         //  12 - Really new functions begin here
+#define FSControl_LookupFS                  0xd         //  13
+#define FSControl_SelectFS                  0xe         //  14
+#define FSControl_BootupFS                  0xf         //  15
+#define FSControl_RemoveFS                  0x10        //  16
+#define FSControl_AddSecondaryFS            0x11        //  17
+#define FSControl_ReadFileType              0x12        //  18
+#define FSControl_RestoreCurrent            0x13        //  19
+#define FSControl_ReadModuleBase            0x14        //  20
+#define FSControl_ReadFSHandle              0x15        //  21
+#define FSControl_Shut                      0x16        //  22
+#define FSControl_ShutDown                  0x17        //  23
+#define FSControl_Access                    0x18        //  24
+#define FSControl_Rename                    0x19        //  25
+#define FSControl_Copy                      0x1a        //  26
+#define FSControl_Wipe                      0x1b        //  27
+#define FSControl_Count                     0x1c        //  28
+#define FSControl_CreateHandle              0x1d        //  29
+#define FSControl_ReadSecondaryModuleBase   0x1e        //  30
+#define FSControl_FileTypeFromString        0x1f        //  31
+#define FSControl_FileInfo                  0x20        //  32
+#define FSControl_ReadFSName                0x21        //  33
+#define FSControl_SetContexts               0x22        //  34
+#define FSControl_RegisterImageFS           0x23        //  35 - Functions introduced post Risc OS 2.00 start here
+#define FSControl_DeRegisterImageFS         0x24        //  36
+#define FSControl_CanonicalisePath          0x25        //  37
+#define FSControl_InfoToFileType            0x26        //  38
+#define FSControl_URD                       0x27        //  39
+#define FSControl_Back                      0x28        //  40
+#define FSControl_DefectList                0x29        //  41
+#define FSControl_AddDefect                 0x2a        //  42
+#define FSControl_NoDir                     0x2b        //  43
+#define FSControl_NoURD                     0x2c        //  44
+#define FSControl_NoLib                     0x2d        //  45
+#define FSControl_UsedSpaceMap              0x2e        //  46
+#define FSControl_ReadBootOption            0x2f        //  47
+#define FSControl_WriteBootOption           0x30        //  48
+#define FSControl_ReadFreeSpace             0x31        //  49
+#define FSControl_NameDisc                  0x32        //  50
+#define FSControl_StampImage                0x33        //  51
+#define FSControl_ObjectAtOffset            0x34        //  52
+#define FSControl_SetDir                    0x35        //  53
+#define FSControl_ReadDir                   0x36        //  54
+#define FSControl_ReadFreeSpace64           0x37        //  55 - These introduced after RISC OS 3.50
+#define FSControl_DefectList64              0x38        //  56
+#define FSControl_AddDefect64               0x39        //  57
+#define FSControl_EnumerateHandles          0x3a        //  58 - These introduced for Ally
+#define FSControl_FileSwitchInfo            0x3b        //  59
+#define FSControl_RunAbsolute               0x3c        //  60
+#define FSControl_RunUntyped                0x3d        //  61
+#define FSControl_RunUtility                0x3e        //  62
+
+#endif

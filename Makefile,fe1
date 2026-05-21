@@ -38,6 +38,7 @@ CDEFINES   =
 OBJS       = o.modhead \
             o.module \
             o.cli \
+            o.alias \
             o.os \
             o.stubs
 

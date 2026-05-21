@@ -1,0 +1,377 @@
+/*******************************************************************
+ * File:        alias
+ * Purpose:     Alias expansion for the CLIV module
+ * Author:      Gerph
+ ******************************************************************/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "alias.h"
+#include "fscontrol.h"
+#include "os.h"
+
+/* #define DEBUG */
+
+#ifdef DEBUG
+#define dprintf if (1) printf
+#else
+#define dprintf if (0) printf
+#endif
+
+
+/***************************************************************************
+ * Function:     cliv_strdup_range
+ * Description:  Duplicate a fixed-length string range
+ * Parameters:   text = source characters
+ *               len  = number of bytes to copy
+ * Returns:      Allocated string, or NULL on failure
+ **************************************************************************/
+static char *cliv_strdup_range(const char *text, size_t len)
+{
+    char *copy;
+
+    copy = (char *)malloc(len + 1);
+    if (copy == NULL)
+    {
+        return NULL;
+    }
+
+    memcpy(copy, text, len);
+    copy[len] = '\0';
+    return copy;
+}
+
+
+/***************************************************************************
+ * Function:     cliv_build_alias_name
+ * Description:  Construct an Alias$ variable name from a command token
+ * Parameters:   command = command token to map
+ * Returns:      Allocated alias name, or NULL on failure
+ **************************************************************************/
+static char *cliv_build_alias_name(const char *command)
+{
+    const char prefix[] = "Alias$";
+    size_t prefix_len;
+    size_t command_len;
+    char *name;
+    size_t i;
+
+    prefix_len = sizeof(prefix) - 1;
+    command_len = strlen(command);
+    name = (char *)malloc(prefix_len + command_len + 1);
+    if (name == NULL)
+    {
+        return NULL;
+    }
+
+    memcpy(name, prefix, prefix_len);
+    memcpy(name + prefix_len, command, command_len + 1);
+
+    for (i = prefix_len; i < prefix_len + command_len; i++)
+    {
+        if (name[i] == '.')
+        {
+            name[i] = '*';
+        }
+    }
+
+    return name;
+}
+
+
+/***************************************************************************
+ * Function:     cliv_read_var_string
+ * Description:  Read a variable value into an allocated buffer
+ * Parameters:   name  = variable name to read
+ *               type  = variable type to request
+ *               value = updated with allocated result on success
+ * Returns:      1 if a value was read, 0 if absent or failed
+ **************************************************************************/
+static int cliv_read_var_string(const char *name, int type, char **value)
+{
+    _kernel_oserror *err;
+    int32_t size;
+    int32_t out_type;
+    uint32_t context;
+    char *buffer;
+
+    *value = NULL;
+    context = 0;
+    out_type = -1;
+    size = 0;
+
+    err = os_readvarval(name, NULL, -1, context, type, &context, &size, &out_type);
+    if (err != NULL && err->errnum != ErrorNumber_BuffOverflow)
+    {
+        return 0;
+    }
+
+    if (size <= 0 || out_type < 0)
+    {
+        return 0;
+    }
+
+    buffer = (char *)malloc((size_t)size + 1);
+    if (buffer == NULL)
+    {
+        return 0;
+    }
+
+    err = os_readvarval(name, buffer, size, 0, type, &context, &size, &out_type);
+    if (err != NULL)
+    {
+        free(buffer);
+        return 0;
+    }
+
+    buffer[size] = '\0';
+    *value = buffer;
+    return 1;
+}
+
+
+/***************************************************************************
+ * Function:     cliv_expand_alias
+ * Description:  Expand alias text with OS_SubstituteArgs
+ * Parameters:   alias_text = template to expand
+ *               args       = argument string
+ *               expanded   = updated with allocated expansion
+ * Returns:      1 if expansion succeeded, 0 otherwise
+ **************************************************************************/
+static int cliv_expand_alias(const char *alias_text, const char *args, char **expanded)
+{
+    _kernel_oserror *err;
+    char *buffer;
+    int result_length;
+    int buffer_length;
+    size_t alias_length;
+    size_t args_length;
+
+    *expanded = NULL;
+    alias_length = strlen(alias_text);
+    args_length = strlen(args);
+    buffer_length = (int)(alias_length + args_length + 32);
+    if (buffer_length < 64)
+    {
+        buffer_length = 64;
+    }
+
+    for (;;)
+    {
+        buffer = (char *)malloc((size_t)buffer_length);
+        if (buffer == NULL)
+        {
+            return 0;
+        }
+
+        err = cliv_os_substitute_args(args,
+                                      0,
+                                      buffer,
+                                      buffer_length,
+                                      alias_text,
+                                      (int)alias_length,
+                                      &result_length);
+        if (err == NULL)
+        {
+            if (result_length <= 0)
+            {
+                buffer[0] = '\0';
+            }
+            else
+            {
+                buffer[result_length - 1] = '\0';
+            }
+            *expanded = buffer;
+            return 1;
+        }
+
+        free(buffer);
+        if (err->errnum != ErrorNumber_BuffOverflow)
+        {
+            return 0;
+        }
+
+        buffer_length *= 2;
+        if (buffer_length <= 0)
+        {
+            return 0;
+        }
+    }
+}
+
+
+/***************************************************************************
+ * Function:     cliv_execute_alias_lines
+ * Description:  Execute each line in an expanded alias string
+ * Parameters:   expanded = expanded alias text
+ * Returns:      1 if all lines were executed, 0 otherwise
+ **************************************************************************/
+static int cliv_execute_alias_lines(const char *expanded)
+{
+    const char *line;
+
+    line = expanded;
+    while (*line != '\0')
+    {
+        const char *end;
+        char *current;
+        _kernel_oserror *err;
+
+        end = line;
+        while (*end != '\0' && *end != '\r' && *end != '\n')
+        {
+            end++;
+        }
+
+        current = cliv_strdup_range(line, (size_t)(end - line));
+        if (current == NULL)
+        {
+            return 0;
+        }
+
+        dprintf("CLIV alias execute: %s\n", current);
+        err = os_cli(current);
+        free(current);
+        if (err != NULL)
+        {
+            return 0;
+        }
+
+        while (*end == '\r' || *end == '\n')
+        {
+            end++;
+        }
+        line = end;
+    }
+
+    return 1;
+}
+
+
+/***************************************************************************
+ * Function:     cliv_alias_command_eligible
+ * Description:  Report whether a command token can be an alias
+ * Parameters:   command = command token to inspect
+ * Returns:      1 if alias lookup should be attempted, 0 otherwise
+ **************************************************************************/
+static int cliv_alias_command_eligible(const char *command)
+{
+    const char *dot;
+
+    dot = strchr(command, '.');
+    if (dot == NULL)
+    {
+        return 1;
+    }
+
+    return dot[1] == '\0';
+}
+
+
+/***************************************************************************
+ * Function:     cliv_try_alias_internal
+ * Description:  Attempt alias expansion for a command and arguments
+ * Parameters:   command = command token to inspect
+ *               args    = argument string
+ *               handled = updated to report whether the command was claimed
+ * Returns:      1 if processing completed, 0 on allocation failure
+ **************************************************************************/
+static int cliv_try_alias_internal(const char *command,
+                                   const char *args,
+                                   int *handled)
+{
+    char *alias_name;
+    char *alias_text;
+    char *expanded;
+    int ok;
+
+    *handled = 0;
+    if (!cliv_alias_command_eligible(command))
+    {
+        return 1;
+    }
+
+    alias_name = cliv_build_alias_name(command);
+    if (alias_name == NULL)
+    {
+        return 0;
+    }
+
+    alias_text = NULL;
+    if (!cliv_read_var_string(alias_name, VarType_Expanded, &alias_text))
+    {
+        free(alias_name);
+        return 1;
+    }
+    free(alias_name);
+
+    expanded = NULL;
+    ok = cliv_expand_alias(alias_text, args, &expanded);
+    free(alias_text);
+    if (!ok)
+    {
+        return 0;
+    }
+
+    ok = cliv_execute_alias_lines(expanded);
+    free(expanded);
+    if (!ok)
+    {
+        return 0;
+    }
+
+    *handled = 1;
+    return 1;
+}
+
+
+/***************************************************************************
+ * Function:     cliv_try_alias
+ * Description:  Attempt alias expansion, including the special '*.' case
+ * Parameters:   command = command token to inspect
+ *               args    = argument string to append or substitute
+ *               handled = updated to report whether the command was claimed
+ * Returns:      1 if processing completed, 0 on allocation failure
+ **************************************************************************/
+int cliv_try_alias(const char *command, const char *args, int *handled)
+{
+    int ok;
+
+    *handled = 0;
+
+    if (command[0] == '.' && command[1] != '\0')
+    {
+        ok = cliv_try_alias_internal(".", command + 1, handled);
+        if (!ok)
+        {
+            return 0;
+        }
+        if (*handled)
+        {
+            return 1;
+        }
+    }
+
+    ok = cliv_try_alias_internal(command, args, handled);
+    if (!ok)
+    {
+        return 0;
+    }
+    if (*handled)
+    {
+        return 1;
+    }
+
+    if (strcmp(command, ".") == 0)
+    {
+        if (os_fscontrol_cat(args) == NULL)
+        {
+            *handled = 1;
+        }
+        return 1;
+    }
+
+    return 1;
+}

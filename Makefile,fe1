@@ -52,6 +52,7 @@ include CModule
 
 # Additional dependencies
 $(OZDIR).module: h.modhead
+$(OZDIR).os: h.modhead
 
 # Export rules
 # For any files you export with EXPORTS you may need to include an
